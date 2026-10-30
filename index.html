@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#b80016">
+<title>Orion FC | Presença</title>
+<style>
+:root{--red:#e00020;--bg:#090909;--panel:#171717;--muted:#aaa;--line:#333}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f7f7f7;font:16px system-ui,Arial,sans-serif}
+header{padding:22px 16px;background:linear-gradient(120deg,#390008,#0a0a0a 65%);border-bottom:2px solid var(--red)}
+.wrap{max-width:1000px;margin:auto;padding:16px}h1{margin:0;font-size:25px;letter-spacing:1px}header p{margin:5px 0 0;color:#ddd}
+nav{display:flex;gap:8px;overflow:auto;margin:14px 0}button,.tab{border:1px solid #444;background:#202020;color:white;padding:10px 13px;border-radius:10px;font-weight:650;cursor:pointer}button.primary{background:var(--red);border-color:var(--red)}button.danger{background:#5c1019;border-color:#a82031;color:#fff}button:disabled{opacity:.5}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat{background:#202020;border-radius:12px;padding:14px}.stat b{display:block;font-size:26px}.stat span{font-size:12px;color:var(--muted)}
+input,select{width:100%;padding:12px;background:#0d0d0d;color:white;border:1px solid #444;border-radius:9px;margin:5px 0 12px;font:inherit}
+label{font-size:13px;color:#ddd} .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.hidden{display:none!important}
+.item{padding:12px 0;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center;gap:10px}.item:last-child{border:0}.muted{color:var(--muted);font-size:13px}.pill{font-size:12px;padding:4px 8px;border-radius:20px;background:#292929}.ok{color:#73e3a1}.bad{color:#ff687a}
+.notice{color:#ffd7a1;font-size:13px;line-height:1.5}.message{padding:12px;border-radius:9px;margin-top:10px;background:#222}.small{font-size:12px}
+@media(max-width:550px){.row{grid-template-columns:1fr}.stats{gap:6px}.stat{padding:10px}.stat b{font-size:22px}.wrap{padding:12px}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>ORION <span style="color:#ff203e">FC</span></h1><p>Controle de presença • Treinos</p></div></header>
+<main class="wrap">
+<div class="stats"><div class="stat"><b id="playersCount">7</b><span>JOGADORES</span></div><div class="stat"><b id="presCount">0</b><span>PRESENÇAS</span></div><div class="stat"><b id="absCount">0</b><span>FALTAS REGISTRADAS</span></div></div>
+<nav>
+<button class="primary" data-tab="check">Validar presença</button><button data-tab="players">Jogadores e códigos</button><button data-tab="history">Relatórios</button><button data-tab="settings">Treino / dados</button>
+</nav>
+<section id="check" class="panel">
+<h2>Validar presença</h2><p class="muted">Abra um treino antes de registrar. Cada jogador só pode confirmar uma vez por treino.</p>
+<label>Treino ativo</label><select id="sessionSelect"></select>
+<label>Escolher jogador</label><select id="playerSelect"></select>
+<label>Foto obrigatória</label><input id="photoInput" type="file" accept="image/*" capture="user">
+<button class="primary" id="validateBtn">Continuar com a foto</button>
+<p class="muted">Depois da foto, confirme o código exibido para registrar a presença.</p>
+<div id="codeConfirm" class="panel hidden" style="margin-top:14px">
+ <h3>Confirmar jogador</h3>
+ <div id="confirmPlayer" style="font-weight:800;font-size:18px"></div>
+ <img id="confirmPhoto" alt="Prévia da foto" class="hidden" style="width:120px;height:120px;object-fit:cover;border-radius:10px;margin:10px 0">
+ <p class="muted">Digite exatamente o código deste jogador:</p>
+ <div id="expectedCode" style="font-family:monospace;color:#ff4058;font-weight:800;font-size:18px;margin:8px 0"></div>
+ <label>Confirmar código</label><input id="codeInput" autocomplete="off" placeholder="Ex.: OR-001-SAMUEL">
+ <button class="primary" id="confirmPresence">Confirmar presença</button>
+ <button id="cancelConfirm" type="button">Cancelar</button>
+</div>
+<div id="checkMessage" aria-live="polite"></div>
+<h3>Presentes neste treino</h3><div id="presentList" class="muted">Nenhuma presença registrada.</div>
+</section>
+<section id="players" class="panel hidden"><h2>Jogadores</h2><div id="playerList"></div>
+<h3>Adicionar jogador</h3><label>Nome</label><input id="newName" placeholder="Nome do jogador"><button class="primary" id="addPlayer">Adicionar jogador</button></section>
+<section id="history" class="panel hidden"><h2>Relatórios</h2><label>Filtrar jogador</label><select id="reportPlayer"></select><div id="reportSummary"></div><h3>Treinos anteriores</h3><div id="sessionHistory"></div><button id="exportBtn">Exportar relatório CSV</button></section>
+<section id="settings" class="panel hidden"><h2>Treino / dados</h2><label>Data do treino</label><input id="sessionDate" type="date"><label>Nome/descrição do treino</label><input id="sessionName" placeholder="Ex.: Treino de quinta-feira"><button class="primary" id="createSession">Criar treino</button><p class="notice">Ao fechar um treino, os jogadores que não tiveram presença confirmada serão registrados como falta.</p><button id="closeSession">Fechar treino e registrar faltas</button><hr style="border-color:#333;margin:18px 0"><h3>Backup</h3><button id="backupBtn">Baixar backup JSON</button><label style="display:block;margin-top:12px">Restaurar backup JSON</label><input type="file" id="restoreFile" accept=".json,application/json"><p class="notice">Protótipo: os dados ficam salvos somente neste navegador/aparelho. Para compartilhar registros entre celulares, será necessário conectar um banco de dados online e proteger o acesso do treinador.</p></section>
+<p class="muted small">Orion FC • Protótipo inicial. Não use como registro oficial até configurar backup e controle de acesso.</p>
+</main>
+<script>
+const initialPlayers=[
+{name:"Samuel",code:"OR-001-SAMUEL"},{name:"Ulisses",code:"OR-002-ULISSES"},{name:"Pedro",code:"OR-003-PEDRO"},{name:"Thiago",code:"OR-004-THIAGO"},{name:"Brayan",code:"OR-005-BRAYAN"},{name:"Gabriel",code:"OR-006-GABRIEL"},{name:"Deivid",code:"OR-007-DEIVID"}];
+const KEY="orion_fc_attendance_v1";
+let db;try{db=JSON.parse(localStorage.getItem(KEY))||null}catch(e){}
+if(!db)db={players:initialPlayers,sessions:[],activeId:null,records:[]};if(!Array.isArray(db.players))db.players=initialPlayers;if(!Array.isArray(db.sessions))db.sessions=[];if(!Array.isArray(db.records))db.records=[];db.players.forEach((p,i)=>{if(!p.code)p.code="OR-"+String(i+1).padStart(3,"0")+"-JOGADOR"});
+const $=id=>document.getElementById(id), today=()=>new Date().toLocaleDateString("en-CA");
+function save(){localStorage.setItem(KEY,JSON.stringify(db));render()}
+function active(){return db.sessions.find(s=>s.id===db.activeId&&!s.closed)}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function recordFor(sid,pid){return db.records.find(r=>r.sessionId===sid&&r.playerCode===pid)}
+function render(){
+ $("playersCount").textContent=db.players.length;$("presCount").textContent=db.records.filter(r=>r.status==="present").length;$("absCount").textContent=db.records.filter(r=>r.status==="absent").length;
+ const sel=$("sessionSelect");sel.innerHTML=db.sessions.filter(s=>!s.closed).map(s=>`<option value="${s.id}">${esc(s.name)} — ${s.date}</option>`).join("")||'<option value="">Nenhum treino aberto</option>';if(db.activeId&&[...sel.options].some(o=>o.value===db.activeId))sel.value=db.activeId;
+ $("presentList").innerHTML=active()?db.records.filter(r=>r.sessionId===active().id&&r.status==="present").map(r=>`<div class="item"><div><b>${esc(db.players.find(p=>p.code===r.playerCode)?.name||r.playerCode)}</b>${r.photo?`<br><img src="${r.photo}" alt="Foto da presença" style="width:76px;height:76px;object-fit:cover;border-radius:8px;margin-top:6px">`:""}</div><span class="pill ok">${esc(r.time)}</span></div>`).join("")||"Nenhuma presença registrada.":"Crie um treino na aba Treino / dados.";
+ $("playerList").innerHTML=db.players.map(p=>`<div class="item"><div><b>${esc(p.name)}</b><div class="muted" style="margin-top:4px;font-family:monospace">${esc(p.code)}</div></div><button class="danger" data-delete="${esc(p.code)}">Excluir jogador</button></div>`).join("")||"Nenhum jogador cadastrado.";
+ const ps=$("playerSelect"),oldPlayer=ps.value;ps.innerHTML=db.players.map(p=>`<option value="${esc(p.code)}">${esc(p.name)}</option>`).join("")||'<option value="">Nenhum jogador cadastrado</option>';if(db.players.some(p=>p.code===oldPlayer))ps.value=oldPlayer;
+ $("reportPlayer").innerHTML='<option value="all">Todos os jogadores</option>'+db.players.map(p=>`<option value="${esc(p.code)}">${esc(p.name)}</option>`).join("");
+ $("sessionHistory").innerHTML=db.sessions.slice().reverse().map(s=>`<div class="item"><div><b>${esc(s.name)}</b><div class="muted">${s.date} • ${s.closed?"Encerrado":"Em andamento"}</div></div><span class="pill">${db.records.filter(r=>r.sessionId===s.id&&r.status==="present").length} presentes</span></div>`).join("")||"Nenhum treino cadastrado.";
+ report();
+}
+function report(){const code=$("reportPlayer").value||"all";let players=code==="all"?db.players:db.players.filter(p=>p.code===code);let html="";
+ for(const p of players){const rec=db.records.filter(r=>r.playerCode===p.code);const present=rec.filter(r=>r.status==="present").length,abs=rec.filter(r=>r.status==="absent").length,total=present+abs,pct=total?Math.round(present/total*100):0;html+=`<div class="item"><div><b>${esc(p.name)}</b><div class="muted">${present} presenças • ${abs} faltas • ${pct}% de frequência</div></div><span class="pill">${total} treinos</span></div>`}
+ $("reportSummary").innerHTML=html||"Sem registros.";
+}
+function message(text,ok=false){$("checkMessage").innerHTML=`<div class="message ${ok?"ok":"bad"}">${text}</div>`}
+let pendingAttendance=null;
+function validateWithPhoto(){
+ const s=active();if(!s){message("Crie ou selecione um treino aberto antes de registrar.");return}
+ const code=$("playerSelect").value;const p=db.players.find(p=>p.code===code);if(!p){message("Escolha um jogador.");return}
+ if(recordFor(s.id,p.code)){message(`${esc(p.name)} já tem um registro neste treino.`);return}
+ const input=$("photoInput"),file=input.files&&input.files[0];if(!file){message("Tire uma foto antes de continuar.");return}
+ if(!file.type.startsWith("image/")){message("Selecione uma imagem válida.");return}
+ const reader=new FileReader();reader.onload=()=>{
+  const img=new Image();img.onload=()=>{
+   try{
+    const max=640,scale=Math.min(1,max/Math.max(img.width,img.height));const canvas=document.createElement("canvas");canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+    const photo=canvas.toDataURL("image/jpeg",0.65);
+    pendingAttendance={sessionId:s.id,playerCode:p.code,playerName:p.name,date:s.date,photo};
+    $("confirmPlayer").textContent=p.name;
+    $("expectedCode").textContent=p.code;
+    $("confirmPhoto").src=photo;$("confirmPhoto").classList.remove("hidden");
+    $("codeInput").value="";$("codeConfirm").classList.remove("hidden");
+    message("Confira se o jogador e o código estão corretos.");
+    $("codeInput").focus();
+   }catch(err){message("Não foi possível processar a foto.")}
+  };img.onerror=()=>message("Não foi possível abrir essa foto. Tente tirar outra.");img.src=reader.result;
+ };reader.onerror=()=>message("Não foi possível ler a foto.");reader.readAsDataURL(file);
+}
+function confirmAttendance(){
+ if(!pendingAttendance){message("Tire a foto novamente.");return}
+ const typed=$("codeInput").value.trim().toUpperCase();
+ if(typed!==pendingAttendance.playerCode){message("Código incorreto. Confira o código do jogador e tente novamente.");return}
+ const s=active();
+ if(!s||s.id!==pendingAttendance.sessionId){message("O treino mudou ou foi encerrado. Selecione o treino e tire a foto novamente.");pendingAttendance=null;$("codeConfirm").classList.add("hidden");return}
+ if(recordFor(s.id,pendingAttendance.playerCode)){message("Este jogador já tem presença neste treino.");pendingAttendance=null;$("codeConfirm").classList.add("hidden");return}
+ const now=new Date();
+ const record={sessionId:s.id,playerCode:pendingAttendance.playerCode,status:"present",time:now.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),date:pendingAttendance.date,photo:pendingAttendance.photo};
+ db.records.push(record);
+ try{save();message(`Presença confirmada: ${esc(pendingAttendance.playerName)} • ${pendingAttendance.date}`,true);$("photoInput").value="";$("codeInput").value="";$("codeConfirm").classList.add("hidden");pendingAttendance=null}
+ catch(err){db.records=db.records.filter(r=>r!==record);message("Não foi possível salvar a presença. Tente novamente.")}
+}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("main section").forEach(s=>s.classList.add("hidden"));$(b.dataset.tab).classList.remove("hidden");document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("primary",x===b));if(b.dataset.tab==="history")report()});
+$("validateBtn").onclick=validateWithPhoto;
+$("confirmPresence").onclick=confirmAttendance;
+$("cancelConfirm").onclick=()=>{pendingAttendance=null;$("codeConfirm").classList.add("hidden");$("codeInput").value="";message("Confirmação cancelada. A presença não foi registrada.")};
+$("sessionSelect").onchange=()=>{db.activeId=$("sessionSelect").value||null;save()};
+$("createSession").onclick=()=>{const date=$("sessionDate").value||today(),name=$("sessionName").value.trim()||"Treino";const s={id:"T"+Date.now(),date,name,closed:false};db.sessions.push(s);db.activeId=s.id;save();message("Treino criado. Presenças liberadas.",true)};
+$("closeSession").onclick=()=>{const s=active();if(!s){alert("Não há treino aberto.");return}if(!confirm("Fechar este treino e marcar como falta todos os jogadores sem presença?"))return;for(const p of db.players)if(!recordFor(s.id,p.code))db.records.push({sessionId:s.id,playerCode:p.code,status:"absent",time:"—",date:s.date});s.closed=true;db.activeId=null;save();message("Treino encerrado; faltas registradas.",true)};
+$("addPlayer").onclick=()=>{const name=$("newName").value.trim();if(!name){alert("Digite o nome do jogador.");return}if(db.players.some(p=>p.name.toLowerCase()===name.toLowerCase())){alert("Esse jogador já está cadastrado.");return}const slug=name.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]+/g,"-").replace(/^-|-$/g,"")||"JOGADOR";const used=new Set(db.players.map(p=>p.code));let number,code,tries=0;do{number=Math.floor(Math.random()*999)+1;code="OR-"+String(number).padStart(3,"0")+"-"+slug;tries++}while(used.has(code)&&tries<2000);if(used.has(code)){alert("Não foi possível gerar um código livre. Tente novamente.");return}db.players.push({name,code});$("newName").value="";save()};
+document.addEventListener("click",e=>{
+ const del=e.target.closest("[data-delete]");
+ if(del){
+  const player=db.players.find(p=>p.code===del.dataset.delete);
+  if(!player)return;
+  if(!confirm(`Excluir ${player.name} e apagar também o histórico de presenças/faltas desse jogador? Essa ação não pode ser desfeita.`))return;
+  db.players=db.players.filter(p=>p.code!==player.code);
+  db.records=db.records.filter(r=>r.playerCode!==player.code);
+  save();
+  return;
+ }
+});
+$("reportPlayer").onchange=report;
+$("exportBtn").onclick=()=>{const rows=[["Jogador","Código","Treino","Data","Status","Horário"]];for(const r of db.records){const p=db.players.find(p=>p.code===r.playerCode),s=db.sessions.find(s=>s.id===r.sessionId);rows.push([p?.name||"",r.playerCode,s?.name||"",r.date,r.status,r.time])}const csv=rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(";")).join("\n");download("orion-fc-relatorio.csv",csv,"text/csv;charset=utf-8")};
+$("backupBtn").onclick=()=>download("orion-fc-backup.json",JSON.stringify(db,null,2),"application/json");
+function download(name,data,type){const a=document.createElement("a"),url=URL.createObjectURL(new Blob(["\ufeff",data],{type}));a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
+$("restoreFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d.players)||!Array.isArray(d.sessions)||!Array.isArray(d.records))throw 0;if(confirm("Substituir os dados atuais pelo backup?")){db=d;save();alert("Backup restaurado.")}}catch(err){alert("Arquivo de backup inválido.")}e.target.value=""};
+
+$("sessionDate").value=today();render();
+</script>
+</body></html>
